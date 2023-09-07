@@ -1,87 +1,67 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
-	"github.com/kkdai/youtube/v2"
-	"io"
-	"os"
-	"strings"
+	"log"
+
+	_ "github.com/mattn/go-sqlite3" // 导入 SQLite 驱动程序
 )
 
-// ExampleClient ExampleDownload : Example code for how to use this package for download video.
-func ExampleClient() {
-	videoID := "BaW_jenozKc"
-	client := youtube.Client{}
-
-	video, err := client.GetVideo(videoID)
+func main() {
+	// 打开或创建 SQLite 数据库文件
+	db, err := sql.Open("sqlite3", "mydatabase.db")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
+	defer db.Close()
 
-	formats := video.Formats.WithAudioChannels() // only get videos with audio
-	stream, _, err := client.GetStream(video, &formats[0])
+	// 创建表
+	createTable := `
+	CREATE TABLE IF NOT EXISTS users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT,
+		email TEXT
+	);
+	`
+	_, err = db.Exec(createTable)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	file, err := os.Create("video.mp4")
+	// 插入数据
+	insertData := `
+	INSERT INTO users (username, email) VALUES (?, ?);
+	`
+	_, err = db.Exec(insertData, "user1", "user1@example.com")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	defer file.Close()
 
-	_, err = io.Copy(file, stream)
+	// 查询数据
+	query := `
+	SELECT id, username, email FROM users;
+	`
+	rows, err := db.Query(query)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-}
+	defer rows.Close()
 
-// Example usage for playlists: downloading and checking information.
-func ExamplePlaylist() {
-	playlistID := "PLQZgI7en5XEgM0L1_ZcKmEzxW1sCOVZwP"
-	client := youtube.Client{}
-
-	playlist, err := client.GetPlaylist(playlistID)
-	if err != nil {
-		panic(err)
-	}
-
-	/* ----- Enumerating playlist videos ----- */
-	header := fmt.Sprintf("Playlist %s by %s", playlist.Title, playlist.Author)
-	println(header)
-	println(strings.Repeat("=", len(header)) + "\n")
-
-	for k, v := range playlist.Videos {
-		fmt.Printf("(%d) %s - '%s'\n", k+1, v.Author, v.Title)
+	// 处理查询结果
+	for rows.Next() {
+		var id int
+		var username string
+		var email string
+		err := rows.Scan(&id, &username, &email)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("ID: %d, Username: %s, Email: %s\n", id, username, email)
 	}
 
-	/* ----- Downloading the 1st video ----- */
-	entry := playlist.Videos[0]
-	video, err := client.VideoFromPlaylistEntry(entry)
-	if err != nil {
-		panic(err)
+	// 检查是否有错误
+	if err := rows.Err(); err != nil {
+		log.Fatal(err)
 	}
-	// Now it's fully loaded.
-
-	fmt.Printf("Downloading %s by '%s'!\n", video.Title, video.Author)
-
-	stream, _, err := client.GetStream(video, &video.Formats[0])
-	if err != nil {
-		panic(err)
-	}
-
-	file, err := os.Create("video.mp4")
-
-	if err != nil {
-		panic(err)
-	}
-
-	defer file.Close()
-	_, err = io.Copy(file, stream)
-
-	if err != nil {
-		panic(err)
-	}
-
-	println("Downloaded /video.mp4")
 }
