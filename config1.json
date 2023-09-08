@@ -1,0 +1,14 @@
+{
+  "person": {
+    "address": {
+      "city": "Cityville",
+      "coordinates": {
+        "latitude": 42.12345,
+        "longitude": -71.6789
+      },
+      "street": "123 Main St"
+    },
+    "age": 30,
+    "name": "Alice"
+  }
+}

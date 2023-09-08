@@ -1,57 +1,94 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"os"
 )
 
-type Config struct {
-	Person struct {
-		Name    string
-		Age     int
-		Address struct {
-			Street      string
-			City        string
-			Coordinates struct {
-				Latitude  float64
-				Longitude float64
-			}
-		}
+// ConvertTOMLtoJSON 将TOML文件转换为JSON文件
+func ConvertTOMLtoJSON(tomlFileName, jsonFileName string) error {
+	// 打开TOML配置文件
+	tomlFile, err := os.Open(tomlFileName)
+	if err != nil {
+		return fmt.Errorf("无法打开TOML配置文件: %v", err)
 	}
-	Server struct {
-		Hostname string
-		Port     int
+	defer tomlFile.Close()
+
+	// 创建一个空的interface{}来存储TOML解析后的数据
+	var tomlData interface{}
+
+	// 解析TOML文件
+	if _, err := toml.DecodeReader(tomlFile, &tomlData); err != nil {
+		return fmt.Errorf("解析TOML文件时发生错误: %v", err)
 	}
-	Logging struct {
-		Level string
-		File  string
+
+	// 创建JSON文件
+	jsonFile, err := os.Create(jsonFileName)
+	if err != nil {
+		return fmt.Errorf("无法创建JSON文件: %v", err)
 	}
+	defer jsonFile.Close()
+
+	// 将TOML数据编码为JSON格式并写入JSON文件
+	jsonEncoder := json.NewEncoder(jsonFile)
+	if err := jsonEncoder.Encode(tomlData); err != nil {
+		return fmt.Errorf("写入JSON文件时发生错误: %v", err)
+	}
+
+	fmt.Printf("成功将 %s 转换为 %s\n", tomlFileName, jsonFileName)
+	return nil
+}
+
+// ConvertJSONtoTOML 将JSON文件转换为TOML文件
+func ConvertJSONtoTOML(jsonFileName, tomlFileName string) error {
+	// 打开JSON文件
+	jsonFile, err := os.Open(jsonFileName)
+	if err != nil {
+		return fmt.Errorf("无法打开JSON文件: %v", err)
+	}
+	defer jsonFile.Close()
+
+	// 创建一个 map 用于存储 JSON 解析后的数据
+	var jsonData map[string]interface{}
+
+	// 解码 JSON 文件
+	jsonDecoder := json.NewDecoder(jsonFile)
+	if err := jsonDecoder.Decode(&jsonData); err != nil {
+		return fmt.Errorf("解码JSON文件时发生错误: %v", err)
+	}
+
+	// 创建 TOML 文件
+	tomlFile, err := os.Create(tomlFileName)
+	if err != nil {
+		return fmt.Errorf("无法创建TOML文件: %v", err)
+	}
+	defer tomlFile.Close()
+
+	// 将 JSON 数据编码为 TOML 格式并写入 TOML 文件
+	if err := toml.NewEncoder(tomlFile).Encode(jsonData); err != nil {
+		return fmt.Errorf("写入TOML文件时发生错误: %v", err)
+	}
+
+	fmt.Printf("成功将 %s 转换为 %s\n", jsonFileName, tomlFileName)
+	return nil
 }
 
 func main() {
-	// 打开TOML配置文件
-	file, err := os.Open("config1.toml")
-	if err != nil {
-		fmt.Println("无法打开配置文件:", err)
-		return
+	jsonFileName := "config1.json"
+	tomlFileName := "config2.toml"
+
+	if err := ConvertJSONtoTOML(jsonFileName, tomlFileName); err != nil {
+		fmt.Printf("转换出错: %v\n", err)
 	}
-	defer file.Close()
-
-	// 创建一个Config结构体实例来存储解析后的配置数据
-	var config Config
-
-	// 使用toml.Decode来解析TOML文件并将数据填充到config结构体中
-	if _, err := toml.DecodeReader(file, &config); err != nil {
-		fmt.Println("解析TOML文件时发生错误:", err)
-		return
-	}
-
-	// 打印解析后的配置数据
-	fmt.Printf("Person Name: %s\n", config.Person.Name)
-	fmt.Printf("Person Age: %d\n", config.Person.Age)
-	fmt.Printf("Street: %s, City: %s\n", config.Person.Address.Street, config.Person.Address.City)
-	fmt.Printf("Latitude: %f, Longitude: %f\n", config.Person.Address.Coordinates.Latitude, config.Person.Address.Coordinates.Longitude)
-	fmt.Printf("Server Hostname: %s, Port: %d\n", config.Server.Hostname, config.Server.Port)
-	fmt.Printf("Logging Level: %s, File: %s\n", config.Logging.Level, config.Logging.File)
 }
+
+//func main() {
+//	tomlFileName := "config1.toml"
+//	jsonFileName := "config1.json"
+//
+//	if err := ConvertTOMLtoJSON(tomlFileName, jsonFileName); err != nil {
+//		fmt.Printf("转换出错: %v\n", err)
+//	}
+//}
