@@ -1,0 +1,9 @@
+[person]
+  name = "Alice"
+  age = 30
+  [person.address]
+    street = "123 Main St"
+    city = "Cityville"
+    [person.address.coordinates]
+      latitude = 42.12345
+      longitude = -71.67890

@@ -2,86 +2,56 @@ package main
 
 import (
 	"fmt"
-	"github.com/kkdai/youtube/v2"
-	"io"
+	"github.com/BurntSushi/toml"
 	"os"
-	"strings"
 )
 
-// ExampleClient ExampleDownload : Example code for how to use this package for download video.
-func ExampleClient() {
-	videoID := "BaW_jenozKc"
-	client := youtube.Client{}
-
-	video, err := client.GetVideo(videoID)
-	if err != nil {
-		panic(err)
+type Config struct {
+	Person struct {
+		Name    string
+		Age     int
+		Address struct {
+			Street      string
+			City        string
+			Coordinates struct {
+				Latitude  float64
+				Longitude float64
+			}
+		}
 	}
-
-	formats := video.Formats.WithAudioChannels() // only get videos with audio
-	stream, _, err := client.GetStream(video, &formats[0])
-	if err != nil {
-		panic(err)
+	Server struct {
+		Hostname string
+		Port     int
 	}
-
-	file, err := os.Create("video.mp4")
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	_, err = io.Copy(file, stream)
-	if err != nil {
-		panic(err)
+	Logging struct {
+		Level string
+		File  string
 	}
 }
 
-// Example usage for playlists: downloading and checking information.
-func ExamplePlaylist() {
-	playlistID := "PLQZgI7en5XEgM0L1_ZcKmEzxW1sCOVZwP"
-	client := youtube.Client{}
-
-	playlist, err := client.GetPlaylist(playlistID)
+func main() {
+	// 打开TOML配置文件
+	file, err := os.Open("config1.toml")
 	if err != nil {
-		panic(err)
+		fmt.Println("无法打开配置文件:", err)
+		return
 	}
-
-	/* ----- Enumerating playlist videos ----- */
-	header := fmt.Sprintf("Playlist %s by %s", playlist.Title, playlist.Author)
-	println(header)
-	println(strings.Repeat("=", len(header)) + "\n")
-
-	for k, v := range playlist.Videos {
-		fmt.Printf("(%d) %s - '%s'\n", k+1, v.Author, v.Title)
-	}
-
-	/* ----- Downloading the 1st video ----- */
-	entry := playlist.Videos[0]
-	video, err := client.VideoFromPlaylistEntry(entry)
-	if err != nil {
-		panic(err)
-	}
-	// Now it's fully loaded.
-
-	fmt.Printf("Downloading %s by '%s'!\n", video.Title, video.Author)
-
-	stream, _, err := client.GetStream(video, &video.Formats[0])
-	if err != nil {
-		panic(err)
-	}
-
-	file, err := os.Create("video.mp4")
-
-	if err != nil {
-		panic(err)
-	}
-
 	defer file.Close()
-	_, err = io.Copy(file, stream)
 
-	if err != nil {
-		panic(err)
+	// 创建一个Config结构体实例来存储解析后的配置数据
+	var config Config
+
+	// 使用toml.Decode来解析TOML文件并将数据填充到config结构体中
+	if _, err := toml.DecodeReader(file, &config); err != nil {
+		fmt.Println("解析TOML文件时发生错误:", err)
+		return
 	}
 
-	println("Downloaded /video.mp4")
+	// 打印解析后的配置数据
+	fmt.Printf("Person Name: %s\n", config.Person.Name)
+	fmt.Printf("Person Age: %d\n", config.Person.Age)
+	fmt.Printf("Street: %s, City: %s\n", config.Person.Address.Street, config.Person.Address.City)
+	fmt.Printf("Latitude: %f, Longitude: %f\n", config.Person.Address.Coordinates.Latitude, config.Person.Address.Coordinates.Longitude)
+	fmt.Printf("Server Hostname: %s, Port: %d\n", config.Server.Hostname, config.Server.Port)
+	fmt.Printf("Logging Level: %s, File: %s\n", config.Logging.Level, config.Logging.File)
 }
