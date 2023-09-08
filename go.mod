@@ -5,6 +5,7 @@ go 1.21.0
 require (
 	github.com/google/uuid v1.3.1
 	github.com/kkdai/youtube/v2 v2.8.4
+	github.com/mattn/go-sqlite3 v1.14.17
 )
 
 require (
