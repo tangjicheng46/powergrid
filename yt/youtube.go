@@ -6,30 +6,51 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/kkdai/youtube/v2"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"io"
 	"os"
+	"time"
 )
 
 type DownloadConfig struct {
-	Dir string `json:"string"`
+	Dir    string `json:"string"`
+	DbFile string `json:"db"`
+}
+
+type DownloadRecord struct {
+	ID       uint64 `gorm:"primaryKey;autoIncrement"`
+	Url      string
+	Filename string `gorm:"uniqueIndex"`
+	CreateAt time.Time
 }
 
 var config DownloadConfig
+var db *gorm.DB
 
-func InitConfig() error {
+func InitConfig() (err error) {
 	configFilename := "youtube.json"
 	configData, err := os.ReadFile(configFilename)
 	if err != nil {
-		return err
+		return
 	}
 	err = json.Unmarshal(configData, &config)
 	if err != nil {
-		return err
+		return
 	}
 	if config.Dir == "" || !pathExist(config.Dir) {
-		return errors.New("youtube download config dir error")
+		return errors.New("youtube config download dir is not exist")
 	}
-	return nil
+	if config.DbFile == "" {
+		return errors.New("youtube config youtube db is empty")
+	}
+
+	db, err = gorm.Open(sqlite.Open(config.DbFile), &gorm.Config{})
+	if err != nil {
+		return
+	}
+	err = db.AutoMigrate(&DownloadRecord{})
+	return
 }
 
 func DownloadSingleVideo(url, filename string) (err error) {
@@ -65,9 +86,26 @@ func GenerateFilename() string {
 	return u.String() + ".mp4"
 }
 
-func RecordDownload(url string) (err error) {
-	// TODO
-	return nil
+func GenerateFilenameUnique(db *gorm.DB) (string, error) {
+	maxGen := 10
+	for i := 0; i < maxGen; i++ {
+		filename := GenerateFilename()
+		record := DownloadRecord{}
+		result := db.Where("filename = ?", filename).First(&record)
+		if result.Error != nil && result.Error == gorm.ErrRecordNotFound {
+			return filename, nil
+		}
+	}
+	return "", errors.New("cannot generate filename, time == 10")
+}
+
+func DownloadWithRecord(url string) (err error) {
+	filename, err := GenerateFilenameUnique(db)
+	if err != nil {
+		return
+	}
+	err = DownloadSingleVideo(url, filename)
+	return
 }
 
 func pathExist(path string) bool {
