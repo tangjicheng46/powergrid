@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -111,7 +112,22 @@ func DownloadWithRecord(url string) (err error) {
 	if err != nil {
 		return
 	}
-	err = DownloadSingleVideo(url, filename)
+	filenameFull := filepath.Join(config.Dir, filename)
+	err = DownloadSingleVideo(url, filenameFull)
+	if err != nil {
+		return
+	}
+
+	r := DownloadRecord{
+		Url:      url,
+		Filename: filename,
+		CreateAt: time.Now(),
+	}
+
+	result := db.Create(&r)
+	if result.Error != nil {
+		return result.Error
+	}
 	return
 }
 
