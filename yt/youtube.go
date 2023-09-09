@@ -14,7 +14,7 @@ import (
 )
 
 type DownloadConfig struct {
-	Dir    string `json:"string"`
+	Dir    string `json:"download_path"`
 	DbFile string `json:"db"`
 }
 
@@ -28,6 +28,13 @@ type DownloadRecord struct {
 var config DownloadConfig
 var db *gorm.DB
 
+func init() {
+	err := InitConfig()
+	if err != nil {
+		panic(err)
+	}
+}
+
 func InitConfig() (err error) {
 	configFilename := "youtube.json"
 	configData, err := os.ReadFile(configFilename)
@@ -39,7 +46,7 @@ func InitConfig() (err error) {
 		return
 	}
 	if config.Dir == "" || !pathExist(config.Dir) {
-		return errors.New("youtube config download dir is not exist")
+		return fmt.Errorf("youtube config download dir is not exist: %s", config.Dir)
 	}
 	if config.DbFile == "" {
 		return errors.New("youtube config youtube db is empty")

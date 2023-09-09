@@ -1,4 +1,4 @@
 {
-  "dir": "/Users/jichengtang/youtubeDownload",
-  "db": "youtube.db"
+  "download_path": "./download",
+  "db": "./youtube.db"
 }
