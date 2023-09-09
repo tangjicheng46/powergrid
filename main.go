@@ -1,90 +1,54 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"log"
 )
 
+// 定义数据模型
+type User struct {
+	ID    uint `gorm:"primaryKey"`
+	Name  string
+	Email string
+}
+
 func main() {
-	// 打开或创建数据库文件
-	db, err := sql.Open("sqlite3", "my-database.db")
+	// 连接SQLite数据库
+	db, err := gorm.Open(sqlite.Open("test1.db"), &gorm.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	// defer db.Close()
 
-	// 创建表
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS my_table (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT,
-			age INTEGER
-		)
-	`)
+	// 自动迁移数据库表
+	err = db.AutoMigrate(&User{})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// 插入数据
-	insertStatement := "INSERT INTO my_table (name, age) VALUES (?, ?)"
-	_, err = db.Exec(insertStatement, "Alice", 30)
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = db.Exec(insertStatement, "Bob", 25)
-	if err != nil {
-		log.Fatal(err)
-	}
+	newUser := User{Name: "John", Email: "john@example.com"}
+	db.Create(&newUser)
 
 	// 查询数据
-	rows, err := db.Query("SELECT id, name, age FROM my_table")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rows.Close()
+	var user User
+	db.First(&user, 1) // 查询ID为1的用户
 
-	fmt.Println("Query results:")
-	for rows.Next() {
-		var id, age int
-		var name string
-		err := rows.Scan(&id, &name, &age)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("ID: %d, Name: %s, Age: %d\n", id, name, age)
-	}
-
-	// 修改数据
-	updateStatement := "UPDATE my_table SET age = ? WHERE name = ?"
-	_, err = db.Exec(updateStatement, 28, "Alice")
-	if err != nil {
-		log.Fatal(err)
-	}
+	// 更新数据
+	db.Model(&user).Update("Name", "New Name")
 
 	// 删除数据
-	deleteStatement := "DELETE FROM my_table WHERE name = ?"
-	_, err = db.Exec(deleteStatement, "Bob")
-	if err != nil {
-		log.Fatal(err)
-	}
+	//db.Delete(&user)
 
-	// 再次查询数据以查看修改和删除的效果
-	rows, err = db.Query("SELECT id, name, age FROM my_table")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rows.Close()
+	// 查询所有用户
+	var users []User
+	db.Find(&users)
 
-	fmt.Println("Updated query results:")
-	for rows.Next() {
-		var id, age int
-		var name string
-		err := rows.Scan(&id, &name, &age)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("ID: %d, Name: %s, Age: %d\n", id, name, age)
+	// 打印查询结果
+	fmt.Println("All Users:")
+	for _, u := range users {
+		fmt.Printf("ID: %d, Name: %s, Email: %s\n", u.ID, u.Name, u.Email)
 	}
 }
