@@ -30,13 +30,13 @@ var config DownloadConfig
 var db *gorm.DB
 
 func init() {
-	err := InitConfig()
+	err := initConfig()
 	if err != nil {
 		panic(err)
 	}
 }
 
-func InitConfig() (err error) {
+func initConfig() (err error) {
 	configFilename := "youtube.json"
 	configData, err := os.ReadFile(configFilename)
 	if err != nil {
@@ -61,7 +61,31 @@ func InitConfig() (err error) {
 	return
 }
 
-func DownloadSingleVideo(url, filename string) (err error) {
+func DownloadWithRecord(url string) (err error) {
+	filename, err := generateFilenameUnique(db)
+	if err != nil {
+		return
+	}
+	filenameFull := filepath.Join(config.Dir, filename)
+	err = downloadSingleVideo(url, filenameFull)
+	if err != nil {
+		return
+	}
+
+	r := DownloadRecord{
+		Url:      url,
+		Filename: filename,
+		CreateAt: time.Now(),
+	}
+
+	result := db.Create(&r)
+	if result.Error != nil {
+		return result.Error
+	}
+	return
+}
+
+func downloadSingleVideo(url, filename string) (err error) {
 	client := youtube.Client{}
 	video, err := client.GetVideo(url)
 	if err != nil {
@@ -89,15 +113,15 @@ func DownloadSingleVideo(url, filename string) (err error) {
 	return
 }
 
-func GenerateFilename() string {
+func generateFilename() string {
 	u := uuid.New()
 	return u.String() + ".mp4"
 }
 
-func GenerateFilenameUnique(db *gorm.DB) (string, error) {
+func generateFilenameUnique(db *gorm.DB) (string, error) {
 	maxGen := 10
 	for i := 0; i < maxGen; i++ {
-		filename := GenerateFilename()
+		filename := generateFilename()
 		record := DownloadRecord{}
 		result := db.Where("filename = ?", filename).First(&record)
 		if result.Error != nil && result.Error == gorm.ErrRecordNotFound {
@@ -105,30 +129,6 @@ func GenerateFilenameUnique(db *gorm.DB) (string, error) {
 		}
 	}
 	return "", errors.New("cannot generate filename, time == 10")
-}
-
-func DownloadWithRecord(url string) (err error) {
-	filename, err := GenerateFilenameUnique(db)
-	if err != nil {
-		return
-	}
-	filenameFull := filepath.Join(config.Dir, filename)
-	err = DownloadSingleVideo(url, filenameFull)
-	if err != nil {
-		return
-	}
-
-	r := DownloadRecord{
-		Url:      url,
-		Filename: filename,
-		CreateAt: time.Now(),
-	}
-
-	result := db.Create(&r)
-	if result.Error != nil {
-		return result.Error
-	}
-	return
 }
 
 func pathExist(path string) bool {
